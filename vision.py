@@ -87,9 +87,10 @@ def non_max_suppression(boxes, overlapThresh):
     return pick
 
 from game_state import GameState, tile_from_string
+from ai_player import AIPlayer
 
 def main():
-    """Main function to capture screen, find tiles, and update game state."""
+    """Main function to capture screen, find tiles, and suggest a discard."""
     print("Loading templates...")
     try:
         templates = load_templates(TEMPLATE_DIR)
@@ -113,29 +114,43 @@ def main():
 
     # --- Create and Update Game State ---
     game = GameState()
-    my_player = game.get_player('Player 1') # Assuming we are Player 1
-
-    # Clear the hand before populating it with new data
+    my_player = game.get_player('Player 1')
     my_player.hand = [] 
 
     for name, locs in locations.items():
-        # For each location this tile was found, add a tile to our hand
         for _ in locs:
             tile = tile_from_string(name)
             my_player.hand.append(tile)
 
-    # Sort the hand for readability (optional, but good practice)
     my_player.hand.sort(key=lambda t: (t.suit, t.rank))
 
-    # --- Print the Game State Summary ---
+    # --- Use the AI to Choose a Discard ---
+    ai = AIPlayer(player_name='AI Bot')
+    current_shanten = ai.calculate_shanten(my_player.hand)
+    recommended_discard = ai.choose_discard(my_player.hand)
+
+    # --- Print the Results ---
     print("\n")
     game.print_summary()
+    print("--- AI Analysis ---")
+    print(f"Current Shanten: {current_shanten}")
+    if recommended_discard:
+        print(f"Recommended Discard: {recommended_discard}")
+    else:
+        print("No discard recommendation available.")
+    print("-------------------")
 
     # --- (Optional) Display the visual result ---
     print("\nDisplaying visual recognition result. Press any key in the window to close.")
     for name, locs in locations.items():
         for (x, y, w, h) in locs:
-            cv2.rectangle(screenshot_cv, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            # Highlight the recommended discard in a different color (e.g., red)
+            tile_obj = tile_from_string(name)
+            if tile_obj == recommended_discard:
+                cv2.rectangle(screenshot_cv, (x, y), (x + w, y + h), (0, 0, 255), 3)
+            else:
+                cv2.rectangle(screenshot_cv, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
     cv2.imshow('Result', screenshot_cv)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
