@@ -5,7 +5,7 @@ from PIL import ImageGrab
 
 # --- Configuration ---
 TEMPLATE_DIR = 'templates'
-MATCH_THRESHOLD = 0.7 # Adjust this value based on detection accuracy (0.0 to 1.0)
+MATCH_THRESHOLD = 0.9 # Adjust this value based on detection accuracy (0.0 to 1.0)
 
 def load_templates(directory):
     """Loads all template images from the specified directory."""
