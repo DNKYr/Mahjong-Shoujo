@@ -30,24 +30,26 @@ class AIPlayer:
         if not hand_tiles:
             return 99
         hand_array = self._to_34_array(hand_tiles)
-        # The mahjong library calculates for standard, seven pairs, and thirteen orphans.
-        # The result is the minimum of these.
         return self.shanten_calculator.calculate_shanten(hand_array)
 
-    def estimate_hand_value(self, hand_tiles):
+    def estimate_hand_value(self, hand_tiles, dora_tiles=[]):
         """
         Estimates the potential value of a hand if it were to be completed.
-        This is a simplified heuristic. A full implementation would be much more complex.
+        Now includes dora in the calculation.
         """
         if not hand_tiles:
-            return {'han': 0, 'yaku': []}
+            return {'han': 0, 'yaku': [], 'dora': 0}
 
-        hand_array = self._to_34_array(hand_tiles)
-        
-        # We can't calculate value on an incomplete hand, so we'll look for yaku potential.
-        # This is a very simplified approach.
         potential_han = 0
         potential_yaku = []
+        dora_count = 0
+
+        # Count dora in hand
+        for tile in hand_tiles:
+            if tile in dora_tiles:
+                dora_count += 1
+        
+        potential_han += dora_count
 
         # Check for potential Tanyao (all simples)
         is_tanyao = all(tile.suit in ['man', 'pin', 'sou'] and 1 < tile.rank < 9 for tile in hand_tiles)
@@ -56,7 +58,6 @@ class AIPlayer:
             potential_yaku.append('Tanyao')
 
         # Check for potential Yakuhai (dragons, seat/round wind)
-        # This is a simplification - we're just checking for triplets.
         from collections import Counter
         counts = Counter(hand_tiles)
         for tile, count in counts.items():
@@ -64,21 +65,21 @@ class AIPlayer:
                 potential_han += 1
                 potential_yaku.append(f'Yakuhai ({tile.rank})')
 
-        return {'han': potential_han, 'yaku': potential_yaku}
+        return {'han': potential_han, 'yaku': potential_yaku, 'dora': dora_count}
 
 
-    def choose_discard(self, hand_tiles):
+    def choose_discard(self, hand_tiles, dora_tiles=[]):
         """
         Chooses the best tile to discard by balancing shanten and potential hand value.
+        Now considers dora tiles passed from the game state.
         """
         if not hand_tiles or len(hand_tiles) % 3 == 0:
             return None
 
         best_discard_tile = None
-        best_score = -9999  # Initialize with a very low score
+        best_score = -9999
 
         unique_tiles = list(set(hand_tiles))
-        # Sort the tiles to ensure deterministic behavior in case of ties
         unique_tiles.sort(key=lambda t: (t.suit, t.rank))
 
         for tile_to_check in unique_tiles:
@@ -86,19 +87,16 @@ class AIPlayer:
             temp_hand.remove(tile_to_check)
 
             shanten = self.calculate_shanten(temp_hand)
-            
-            # If shanten is 0 (tenpai), the value calculation is more meaningful.
-            # For now, we'll use a simpler heuristic for all shanten levels.
-            value_estimate = self.estimate_hand_value(temp_hand)
+            value_estimate = self.estimate_hand_value(temp_hand, dora_tiles)
             potential_han = value_estimate['han']
 
             # --- The Heuristic Score ---
-            # We want to minimize shanten and maximize han.
-            # The weighting factor determines how much we value one over the other.
-            # A higher weight for shanten makes the AI play faster.
-            # A higher weight for han makes the AI play greedier.
             SHANTEN_WEIGHT = 5 
             score = (potential_han * 1) - (shanten * SHANTEN_WEIGHT)
+
+            # Add a small penalty for discarding a dora tile
+            if tile_to_check in dora_tiles:
+                score -= 5 # Make discarding a dora less attractive
 
             if score > best_score:
                 best_score = score

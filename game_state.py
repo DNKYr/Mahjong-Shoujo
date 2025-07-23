@@ -37,7 +37,8 @@ class GameState:
         self.current_player_index = 0
         self.round_wind = 'east'
         self.round_number = 1
-        self.dora_indicators = []
+        self.dora_indicators = [] # The tile shown on the wall
+        self.dora_tiles = []      # The actual tile that gives a bonus
         self.wall_size = 70 # Starting wall size
 
     def get_player(self, name):
@@ -46,11 +47,17 @@ class GameState:
                 return player
         return None
 
+    def add_dora_indicator(self, indicator_tile):
+        """Adds a dora indicator and calculates the corresponding dora tile."""
+        if indicator_tile:
+            self.dora_indicators.append(indicator_tile)
+            self.dora_tiles.append(get_dora_tile(indicator_tile))
+
     def print_summary(self):
         """Prints a text-based summary of the current game state."""
         print("--- Game State Summary ---")
         print(f"Round: {self.round_wind.capitalize()} {self.round_number}, Wall Tiles Left: {self.wall_size}")
-        print(f"Dora Indicators: {self.dora_indicators}")
+        print(f"Dora Indicators: {self.dora_indicators} (Actual Dora: {self.dora_tiles})")
         print("--------------------------")
         for player in self.players:
             print(f"> {player.name} (Score: {player.score}) <")
@@ -62,6 +69,26 @@ class GameState:
         print("--------------------------")
 
 # --- Utility Functions ---
+
+def get_dora_tile(indicator):
+    """Calculates the dora tile from a given indicator tile."""
+    suit = indicator.suit
+    rank = indicator.rank
+
+    if suit in ['man', 'pin', 'sou']:
+        return Tile(suit, 1 if rank == 9 else rank + 1)
+    
+    wind_order = ['east', 'south', 'west', 'north']
+    if suit == 'wind':
+        idx = wind_order.index(rank)
+        return Tile(suit, wind_order[0] if idx == 3 else wind_order[idx + 1])
+
+    dragon_order = ['white', 'green', 'red']
+    if suit == 'dragon':
+        idx = dragon_order.index(rank)
+        return Tile(suit, dragon_order[0] if idx == 2 else dragon_order[idx + 1])
+    
+    return None # Should not happen
 
 def tile_from_string(s):
     """Converts a string (e.g., 'man1', 'wind_east') to a Tile object."""
